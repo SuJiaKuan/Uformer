@@ -126,10 +126,10 @@ criterion = CharbonnierLoss().cuda()
 ######### DataLoader ###########
 print('===> Loading datasets')
 img_options_train = {'patch_size':opt.train_ps}
-train_dataset = get_training_data(opt.train_dir, img_options_train)
+train_dataset = DefectsDataset(opt.train_dir, 4800, img_options=img_options_train)
 train_loader = DataLoader(dataset=train_dataset, batch_size=opt.batch_size, shuffle=True, 
         num_workers=opt.train_workers, pin_memory=False, drop_last=False)
-val_dataset = get_validation_data(opt.val_dir)
+val_dataset = DefectsDataset(opt.train_dir, 1200, img_options=img_options_train)
 val_loader = DataLoader(dataset=val_dataset, batch_size=opt.batch_size, shuffle=False, 
         num_workers=opt.eval_workers, pin_memory=False, drop_last=False)
 
