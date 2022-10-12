@@ -134,7 +134,10 @@ with torch.no_grad():
         for noisy_patch in noisy_patches:
             restored_patch = model_restoration(noisy_patch)
             restored_patches.append(restored_patch)
-        restored_image = merge_patches(restored_patches)
+        restored_image = \
+            merge_patches(restored_patches) \
+            if args.split \
+            else restored_patches[0]
         restored_image = torch.masked_select(restored_image,mask.bool()).reshape(1,3,h,w)
         restored_image = torch.clamp(restored_image,0,1).cpu().detach().permute(0, 2, 3, 1).squeeze(0)
 
