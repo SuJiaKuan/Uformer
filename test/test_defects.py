@@ -34,6 +34,7 @@ parser.add_argument('--arch', default='Uformer_B', type=str, help='arch')
 parser.add_argument('--batch_size', default=1, type=int, help='Batch size for dataloader')
 parser.add_argument('--split', action='store_true', help='Split the image into two parts for inference (helpful for out-of-memory cases)')
 parser.add_argument('--diff_thrd', type=int, default=0, help='Different threshold for post-processing')
+parser.add_argument('--save_original', action='store_true', help='Save original (noisy) images in result directory')
 parser.add_argument('--save_mask', action='store_true', help='Save mask images in result directory')
 parser.add_argument('--embed_dim', type=int, default=32, help='number of data loading workers')
 parser.add_argument('--win_size', type=int, default=8, help='number of data loading workers')
@@ -60,6 +61,10 @@ os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
 
 restored_dir = os.path.join(args.result_dir, "denoised")
 utils.mkdir(restored_dir)
+
+if args.save_original:
+    original_dir = os.path.join(args.result_dir, "noisy")
+    utils.mkdir(original_dir)
 
 if args.save_mask:
     mask_dir = os.path.join(args.result_dir, "mask")
@@ -200,9 +205,12 @@ with torch.no_grad():
         restored_path = os.path.join(restored_dir, img_filename)
         utils.save_img(restored_path, restored_image)
 
+        if args.save_original:
+            original_path = os.path.join(original_dir, img_filename)
+            utils.save_img(original_path, noisy_image)
+
         if args.save_mask:
             image_mask = generate_mask(noisy_image, restored_image)
-            print(image_mask.shape)
             mask_path = os.path.join(mask_dir, img_filename)
             utils.save_img(mask_path, image_mask)
 
