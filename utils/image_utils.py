@@ -109,3 +109,21 @@ class ImagesFolderLoader(ImagesLoader):
         img = cv2.imread(img_path)
 
         return img_path, img
+
+class VideoLoader(ImagesLoader):
+
+    def __init__(self, video_path):
+        self._video_path = video_path
+
+        self._video = cv2.VideoCapture(self._video_path)
+
+    def __del__(self):
+        self._video.release()
+
+    def _get_len(self):
+        return int(self._video.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    def _read(self, img_idx):
+        self._video.set(cv2.CAP_PROP_POS_FRAMES, index)
+
+        return img_idx, self._video.read()[1]

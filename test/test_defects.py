@@ -26,7 +26,7 @@ from skimage.metrics import peak_signal_noise_ratio as psnr_loss
 from skimage.metrics import structural_similarity as ssim_loss
 
 parser = argparse.ArgumentParser(description='Image denoising evaluation on defect images')
-parser.add_argument('input_dir', type=str, help='Directory of defects images')
+parser.add_argument('input_path', type=str, help='Path to defects images directory or video file')
 parser.add_argument('weights', type=str, help='Path to weights')
 parser.add_argument('--result_dir', default='./denoised', type=str, help='Directory for results')
 parser.add_argument('--gpus', default='0', type=str, help='CUDA_VISIBLE_DEVICES')
@@ -140,11 +140,12 @@ def apply_diff_thrd(noisy_image, restored_image, diff_thrd):
 
     return restored_image
 
-
-imgs_loader = utils.ImagesFolderLoader(args.input_dir)
+is_video = not os.path.isdir(args.input_path)
+loader_class = utils.VideoLoader if is_video else utils.ImagesFolderLoader
+imgs_loader = loader_class(args.input_path)
 
 with torch.no_grad():
-    for img_path, noisy_image in imgs_loader:
+    for img_id, noisy_image in imgs_loader:
         noisy_image = cv2.cvtColor(noisy_image, cv2.COLOR_BGR2RGB)
         restored_image = restore_image(noisy_image)
         restored_image = apply_diff_thrd(
@@ -153,8 +154,11 @@ with torch.no_grad():
             args.diff_thrd,
         )
 
-        img_name = os.path.splitext(os.path.basename(img_path))[0]
+        img_name = \
+            str(img_id + 1).zfill(8) \
+            if is_video \
+            else os.path.splitext(os.path.basename(img_id))[0]
         save_file = os.path.join(args.result_dir, "{}.png".format(img_name))
         utils.save_img(save_file, restored_image)
 
-        print("Done: {}".format(img_path))
+        print("Done: {}".format(img_id))
