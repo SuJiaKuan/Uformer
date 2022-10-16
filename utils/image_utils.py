@@ -1,7 +1,18 @@
-import torch
-import numpy as np
+import os
 import pickle
+from glob import glob
+
 import cv2
+import numpy as np
+import torch
+
+IMAGE_EXTENSIONS = (
+    "bmp",
+    "png",
+    "jpg",
+    "jpeg",
+    "tif",
+)
 
 def is_numpy_file(filename):
     return any(filename.endswith(extension) for extension in [".npy"])
@@ -50,3 +61,34 @@ def batch_PSNR(img1, img2, average=True):
         PSNR.append(psnr)
     return sum(PSNR)/len(PSNR) if average else sum(PSNR)
 
+def get_image_paths(imgs_dir, extensions=IMAGE_EXTENSIONS):
+    img_paths = []
+    for extension in extensions:
+        img_paths.extend(glob(
+            os.path.join(imgs_dir, "*.{}".format(extension)),
+        ))
+
+    return sorted(img_paths)
+
+class ImagesFolderLoader(object):
+
+    def __init__(self, imgs_dir):
+        self._imgs_dir = imgs_dir
+
+        self._img_paths = get_image_paths(self._imgs_dir)
+
+    def __len__(self):
+        return len(self._img_paths)
+
+    def __iter__(self):
+        for img_idx in range(len(self)):
+            yield self._read(img_idx)
+
+    def __getitem__(self, key):
+        assert type(key) == int
+
+    def _read(self, img_idx):
+        img_path = self._img_paths[img_idx]
+        img = cv2.imread(img_path)
+
+        return img_path, img

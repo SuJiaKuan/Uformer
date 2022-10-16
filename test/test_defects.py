@@ -1,7 +1,6 @@
 import numpy as np
 import os,sys
 import argparse
-import glob
 from tqdm import tqdm
 from einops import rearrange, repeat
 
@@ -83,15 +82,6 @@ def expand2square(timg,factor=16.0):
 
     return img, mask
 
-def get_imagenames(imgs_dir, extensions=("bmp", "png", "jpg", "jpeg", "tif")):
-    imagenames = []
-    for extension in extensions:
-        imagenames.extend(glob(
-            os.path.join(imgs_dir, "*.{}".format(extension)),
-        ))
-
-    return sorted(imagenames)
-
 def split_image(image):
     patches = []
     half_images = torch.split(
@@ -151,11 +141,10 @@ def apply_diff_thrd(noisy_image, restored_image, diff_thrd):
     return restored_image
 
 
-img_paths = get_imagenames(args.input_dir)
+imgs_loader = utils.ImagesFolderLoader(args.input_dir)
 
 with torch.no_grad():
-    for img_path in img_paths:
-        noisy_image = cv2.imread(img_path)
+    for img_path, noisy_image in imgs_loader:
         noisy_image = cv2.cvtColor(noisy_image, cv2.COLOR_BGR2RGB)
         restored_image = restore_image(noisy_image)
         restored_image = apply_diff_thrd(
