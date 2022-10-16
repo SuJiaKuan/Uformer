@@ -34,6 +34,7 @@ parser.add_argument('--gpus', default='0', type=str, help='CUDA_VISIBLE_DEVICES'
 parser.add_argument('--arch', default='Uformer_B', type=str, help='arch')
 parser.add_argument('--batch_size', default=1, type=int, help='Batch size for dataloader')
 parser.add_argument('--split', action='store_true', help='Split the image into two parts for inference (helpful for out-of-memory cases)')
+parser.add_argument('--diff_thrd', type=int, default=0, help='Different threshold for post-processing')
 parser.add_argument('--save_images', action='store_true', help='Save denoised images in result directory')
 parser.add_argument('--embed_dim', type=int, default=32, help='number of data loading workers')
 parser.add_argument('--win_size', type=int, default=8, help='number of data loading workers')
@@ -139,6 +140,17 @@ def restore_image(input_image):
 
     return restored_image
 
+def apply_diff_thrd(noisy_image, restored_image, diff_thrd):
+    image_diff = cv2.absdiff(noisy_image, restored_image)
+    restored_image = np.where(
+        image_diff > args.diff_thrd,
+        restored_image,
+        noisy_image,
+    )
+
+    return restored_image
+
+
 img_paths = get_imagenames(args.input_dir)
 
 with torch.no_grad():
@@ -146,10 +158,14 @@ with torch.no_grad():
         noisy_image = cv2.imread(img_path)
         noisy_image = cv2.cvtColor(noisy_image, cv2.COLOR_BGR2RGB)
         restored_image = restore_image(noisy_image)
+        restored_image = apply_diff_thrd(
+            noisy_image,
+            restored_image,
+            args.diff_thrd,
+        )
 
         img_name = os.path.splitext(os.path.basename(img_path))[0]
         save_file = os.path.join(args.result_dir, "{}.png".format(img_name))
         utils.save_img(save_file, restored_image)
 
         print("Done: {}".format(img_path))
-        raise
