@@ -1,5 +1,7 @@
 import os
 import pickle
+from abc import ABC
+from abc import abstractmethod
 from glob import glob
 
 import cv2
@@ -70,15 +72,10 @@ def get_image_paths(imgs_dir, extensions=IMAGE_EXTENSIONS):
 
     return sorted(img_paths)
 
-class ImagesFolderLoader(object):
-
-    def __init__(self, imgs_dir):
-        self._imgs_dir = imgs_dir
-
-        self._img_paths = get_image_paths(self._imgs_dir)
+class ImagesLoader(object):
 
     def __len__(self):
-        return len(self._img_paths)
+        return self._get_len()
 
     def __iter__(self):
         for img_idx in range(len(self)):
@@ -86,6 +83,26 @@ class ImagesFolderLoader(object):
 
     def __getitem__(self, key):
         assert type(key) == int
+
+        return self._read(img_idx)
+
+    @abstractmethod
+    def _get_len(self):
+        pass
+
+    @abstractmethod
+    def _read(self, img_idx):
+        pass
+
+class ImagesFolderLoader(ImagesLoader):
+
+    def __init__(self, imgs_dir):
+        self._imgs_dir = imgs_dir
+
+        self._img_paths = get_image_paths(self._imgs_dir)
+
+    def _get_len(self):
+        return len(self._img_paths)
 
     def _read(self, img_idx):
         img_path = self._img_paths[img_idx]
