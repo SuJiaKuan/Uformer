@@ -34,7 +34,7 @@ parser.add_argument('--arch', default='Uformer_B', type=str, help='arch')
 parser.add_argument('--batch_size', default=1, type=int, help='Batch size for dataloader')
 parser.add_argument('--split', action='store_true', help='Split the image into two parts for inference (helpful for out-of-memory cases)')
 parser.add_argument('--diff_thrd', type=int, default=0, help='Different threshold for post-processing')
-parser.add_argument('--save_images', action='store_true', help='Save denoised images in result directory')
+parser.add_argument('--save_mask', action='store_true', help='Save mask images in result directory')
 parser.add_argument('--embed_dim', type=int, default=32, help='number of data loading workers')
 parser.add_argument('--win_size', type=int, default=8, help='number of data loading workers')
 parser.add_argument('--token_projection', type=str,default='linear', help='linear/conv token projection')
@@ -58,7 +58,12 @@ args = parser.parse_args()
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
 
-utils.mkdir(args.result_dir)
+restored_dir = os.path.join(args.result_dir, "denoised")
+utils.mkdir(restored_dir)
+
+if args.save_mask:
+    mask_dir = os.path.join(args.result_dir, "mask")
+    utils.mkdir(mask_dir)
 
 model_restoration= utils.get_arch(args)
 
@@ -140,6 +145,38 @@ def apply_diff_thrd(noisy_image, restored_image, diff_thrd):
 
     return restored_image
 
+def generate_mask(
+    noisy_image,
+    restored_image,
+    binary_threshold=5,
+    kernel_size=5,
+    area_threshold=200,
+):
+    image_diff = cv2.absdiff(noisy_image, restored_image)
+    image_diff_gray = np.max(image_diff, axis=2)
+    image_diff_blur = cv2.blur(image_diff_gray, (kernel_size, kernel_size))
+    _, image_diff_binary = cv2.threshold(
+        image_diff_blur,
+        binary_threshold,
+        255,
+        cv2.THRESH_BINARY,
+    )
+    contours, hierarchy = cv2.findContours(
+        image_diff_binary,
+        cv2.RETR_TREE,
+        cv2.CHAIN_APPROX_SIMPLE,
+    )[-2:]
+    contours = [c for c in contours if cv2.contourArea(c) >= area_threshold]
+    image_mask = cv2.drawContours(
+        np.zeros_like(restored_image),
+        contours,
+        -1,
+        (255, 255, 255),
+        -1,
+    )
+
+    return image_mask
+
 is_video = not os.path.isdir(args.input_path)
 loader_class = utils.VideoLoader if is_video else utils.ImagesFolderLoader
 imgs_loader = loader_class(args.input_path)
@@ -158,7 +195,15 @@ with torch.no_grad():
             str(img_id + 1).zfill(8) \
             if is_video \
             else os.path.splitext(os.path.basename(img_id))[0]
-        save_file = os.path.join(args.result_dir, "{}.png".format(img_name))
-        utils.save_img(save_file, restored_image)
+        img_filename = "{}.png".format(img_name)
+
+        restored_path = os.path.join(restored_dir, img_filename)
+        utils.save_img(restored_path, restored_image)
+
+        if args.save_mask:
+            image_mask = generate_mask(noisy_image, restored_image)
+            print(image_mask.shape)
+            mask_path = os.path.join(mask_dir, img_filename)
+            utils.save_img(mask_path, image_mask)
 
         print("Done: {}".format(img_id))
