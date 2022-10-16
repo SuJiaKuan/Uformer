@@ -110,9 +110,34 @@ def split_image(image):
 
 def merge_patches(patches):
     return torch.concat([
-        torch.concat(restored_patches[:2], dim=3),
-        torch.concat(restored_patches[2:], dim=3),
+        torch.concat(patches[:2], dim=3),
+        torch.concat(patches[2:], dim=3),
     ], dim=2)
+
+def restore_image(input_image):
+    noisy_image = input_image.astype(np.float32)
+    noisy_image /= 255.
+    noisy_image = torch.from_numpy(noisy_image).unsqueeze(0).permute(0,3,1,2).cuda()
+
+    _, _, h, w = noisy_image.shape
+    noisy_image, mask = expand2square(noisy_image, factor=128)
+    noisy_patches = \
+        split_image(noisy_image) \
+        if args.split \
+        else [noisy_image]
+    restored_patches = []
+    for noisy_patch in noisy_patches:
+        restored_patch = model_restoration(noisy_patch)
+        restored_patches.append(restored_patch)
+    restored_image = \
+        merge_patches(restored_patches) \
+        if args.split \
+        else restored_patches[0]
+    restored_image = torch.masked_select(restored_image,mask.bool()).reshape(1,3,h,w)
+    restored_image = torch.clamp(restored_image,0,1).cpu().detach().permute(0, 2, 3, 1).squeeze(0)
+    restored_image = img_as_ubyte(restored_image)
+
+    return restored_image
 
 img_paths = get_imagenames(args.input_dir)
 
@@ -120,29 +145,11 @@ with torch.no_grad():
     for img_path in img_paths:
         noisy_image = cv2.imread(img_path)
         noisy_image = cv2.cvtColor(noisy_image, cv2.COLOR_BGR2RGB)
-        noisy_image = noisy_image.astype(np.float32)
-        noisy_image /= 255.
-        noisy_image = torch.from_numpy(noisy_image).unsqueeze(0).permute(0,3,1,2).cuda()
-
-        _, _, h, w = noisy_image.shape
-        noisy_image, mask = expand2square(noisy_image, factor=128)
-        noisy_patches = \
-            split_image(noisy_image) \
-            if args.split \
-            else [noisy_image]
-        restored_patches = []
-        for noisy_patch in noisy_patches:
-            restored_patch = model_restoration(noisy_patch)
-            restored_patches.append(restored_patch)
-        restored_image = \
-            merge_patches(restored_patches) \
-            if args.split \
-            else restored_patches[0]
-        restored_image = torch.masked_select(restored_image,mask.bool()).reshape(1,3,h,w)
-        restored_image = torch.clamp(restored_image,0,1).cpu().detach().permute(0, 2, 3, 1).squeeze(0)
+        restored_image = restore_image(noisy_image)
 
         img_name = os.path.splitext(os.path.basename(img_path))[0]
         save_file = os.path.join(args.result_dir, "{}.png".format(img_name))
-        utils.save_img(save_file, img_as_ubyte(restored_image))
+        utils.save_img(save_file, restored_image)
 
         print("Done: {}".format(img_path))
+        raise
