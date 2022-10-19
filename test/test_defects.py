@@ -34,6 +34,7 @@ parser.add_argument('--arch', default='Uformer_B', type=str, help='arch')
 parser.add_argument('--batch_size', default=1, type=int, help='Batch size for dataloader')
 parser.add_argument('--split', action='store_true', help='Split the image into two parts for inference (helpful for out-of-memory cases)')
 parser.add_argument('--diff_thrd', type=int, default=0, help='Different threshold for post-processing')
+parser.add_argument('--extension', type=str, default="png", help='Output image file extension format')
 parser.add_argument('--save_original', action='store_true', help='Save original (noisy) images in result directory')
 parser.add_argument('--save_mask', action='store_true', help='Save mask images in result directory')
 parser.add_argument('--embed_dim', type=int, default=32, help='number of data loading workers')
@@ -200,7 +201,7 @@ with torch.no_grad():
             str(img_id + 1).zfill(8) \
             if is_video \
             else os.path.splitext(os.path.basename(img_id))[0]
-        img_filename = "{}.png".format(img_name)
+        img_filename = "{}.{}".format(img_name, args.extension)
 
         restored_path = os.path.join(restored_dir, img_filename)
         utils.save_img(restored_path, restored_image)
