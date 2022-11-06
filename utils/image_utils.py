@@ -84,7 +84,7 @@ class ImagesLoader(object):
     def __getitem__(self, key):
         assert type(key) == int
 
-        return self._read(img_idx)
+        return self._read(key)
 
     @abstractmethod
     def _get_len(self):
@@ -124,6 +124,6 @@ class VideoLoader(ImagesLoader):
         return int(self._video.get(cv2.CAP_PROP_FRAME_COUNT))
 
     def _read(self, img_idx):
-        self._video.set(cv2.CAP_PROP_POS_FRAMES, index)
+        self._video.set(cv2.CAP_PROP_POS_FRAMES, img_idx)
 
         return img_idx, self._video.read()[1]
