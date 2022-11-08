@@ -155,12 +155,12 @@ def apply_diff_thrd(noisy_image, restored_image, diff_thrd):
 def generate_mask(
     noisy_image,
     restored_image,
-    binary_threshold=5,
+    binary_threshold=4,
     kernel_size=5,
     area_threshold=1000,
 ):
     image_diff = cv2.absdiff(noisy_image, restored_image)
-    image_diff_gray = cv2.cvtColor(image_diff, cv2.COLOR_BGR2GRAY)
+    image_diff_gray = cv2.cvtColor(image_diff, cv2.COLOR_RGB2GRAY)
     image_diff_blur = cv2.blur(image_diff_gray, (kernel_size, kernel_size))
     _, image_diff_binary = cv2.threshold(
         image_diff_blur,
@@ -202,7 +202,8 @@ with torch.no_grad():
         image_mask = generate_mask(noisy_image, restored_image)
 
         if args.preserve_large:
-            restored_image[mask.astype(bool)] = noisy_image[mask.astype(bool)]
+            mask = image_mask.astype(bool)
+            restored_image[mask] = noisy_image[mask]
 
         img_name = \
             str(img_id + 1).zfill(8) \
