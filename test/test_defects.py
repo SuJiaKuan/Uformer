@@ -34,6 +34,7 @@ parser.add_argument('--arch', default='Uformer_B', type=str, help='arch')
 parser.add_argument('--batch_size', default=1, type=int, help='Batch size for dataloader')
 parser.add_argument('--split', action='store_true', help='Split the image into two parts for inference (helpful for out-of-memory cases)')
 parser.add_argument('--diff_thrd', type=int, default=0, help='Different threshold for post-processing')
+parser.add_argument('--preserve_large', action='store_true', help='Preserve large noisy regoin as original')
 parser.add_argument('--extension', type=str, default="png", help='Output image file extension format')
 parser.add_argument('--save_original', action='store_true', help='Save original (noisy) images in result directory')
 parser.add_argument('--save_mask', action='store_true', help='Save mask images in result directory')
@@ -156,10 +157,10 @@ def generate_mask(
     restored_image,
     binary_threshold=5,
     kernel_size=5,
-    area_threshold=200,
+    area_threshold=1000,
 ):
     image_diff = cv2.absdiff(noisy_image, restored_image)
-    image_diff_gray = np.max(image_diff, axis=2)
+    image_diff_gray = cv2.cvtColor(image_diff, cv2.COLOR_BGR2GRAY)
     image_diff_blur = cv2.blur(image_diff_gray, (kernel_size, kernel_size))
     _, image_diff_binary = cv2.threshold(
         image_diff_blur,
@@ -180,6 +181,7 @@ def generate_mask(
         (255, 255, 255),
         -1,
     )
+    image_mask = cv2.dilate(image_mask, np.ones((3, 3)), iterations=2)
 
     return image_mask
 
@@ -197,6 +199,11 @@ with torch.no_grad():
             args.diff_thrd,
         )
 
+        image_mask = generate_mask(noisy_image, restored_image)
+
+        if args.preserve_large:
+            restored_image[mask.astype(bool)] = noisy_image[mask.astype(bool)]
+
         img_name = \
             str(img_id + 1).zfill(8) \
             if is_video \
@@ -211,7 +218,6 @@ with torch.no_grad():
             utils.save_img(original_path, noisy_image)
 
         if args.save_mask:
-            image_mask = generate_mask(noisy_image, restored_image)
             mask_path = os.path.join(mask_dir, img_filename)
             utils.save_img(mask_path, image_mask)
 
