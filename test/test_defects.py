@@ -155,7 +155,7 @@ def apply_diff_thrd(noisy_image, restored_image, diff_thrd):
 def generate_mask(
     noisy_image,
     restored_image,
-    binary_threshold=4,
+    binary_threshold=10,
     kernel_size=5,
     area_threshold=1000,
 ):
@@ -181,7 +181,6 @@ def generate_mask(
         (255, 255, 255),
         -1,
     )
-    image_mask = cv2.dilate(image_mask, np.ones((3, 3)), iterations=2)
 
     return image_mask
 
