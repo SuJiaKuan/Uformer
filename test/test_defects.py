@@ -123,7 +123,8 @@ def restore_image(input_image):
     noisy_image = torch.from_numpy(noisy_image).unsqueeze(0).permute(0,3,1,2).cuda()
 
     _, _, h, w = noisy_image.shape
-    noisy_image, mask = expand2square(noisy_image, factor=128)
+    expanded_factor = 128 * 2 if args.split else 128
+    noisy_image, mask = expand2square(noisy_image, factor=expanded_factor)
     noisy_patches = \
         split_image(noisy_image) \
         if args.split \
